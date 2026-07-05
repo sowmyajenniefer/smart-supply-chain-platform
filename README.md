@@ -32,40 +32,6 @@ The goal of this project is to go beyond basic CRUD and build a realistic enterp
 
 ---
 
-## Current Status
-
-### Completed
-
-- Spring Boot backend setup
-- Health check API
-- PostgreSQL database connection
-- Product entity, DTOs, repository, service, and controller
-- Product CRUD APIs
-- GitHub repository setup
-- Protected `main` branch
-- Feature branch and pull request workflow
-
-### In Progress
-
-- Swagger/OpenAPI documentation
-- Global exception handling
-- Product API validation improvements
-
-### Planned
-
-- Inventory module
-- Order module
-- Payment simulation
-- Notification service
-- Kafka event flow
-- Redis caching
-- Angular admin dashboard
-- Docker Compose setup
-- Kubernetes deployment
-- GitHub Actions CI/CD pipeline
-
----
-
 ## Target Architecture
 
 ```mermaid
@@ -131,65 +97,6 @@ sequenceDiagram
     Notification->>DB: Save notification record
     Notification-->>User: Send order status notification
 ```
-
----
-
-## Current API Endpoints
-
-### Health Check
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/health` | Checks if the backend is running |
-
-### Product API
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/products` | Create a new product |
-| GET | `/api/products` | Get all products |
-| GET | `/api/products/{id}` | Get product by ID |
-| PUT | `/api/products/{id}` | Update product by ID |
-| DELETE | `/api/products/{id}` | Delete product by ID |
-
----
-
-## Product API Example
-
-### Create Product
-
-```http
-POST /api/products
-Content-Type: application/json
-```
-
-```json
-{
-  "sku": "SKU-1001",
-  "name": "Laptop Charger",
-  "description": "65W USB-C charger",
-  "category": "Electronics",
-  "unitPrice": 29.99,
-  "active": true
-}
-```
-
-### Example Response
-
-```json
-{
-  "id": 1,
-  "sku": "SKU-1001",
-  "name": "Laptop Charger",
-  "description": "65W USB-C charger",
-  "category": "Electronics",
-  "unitPrice": 29.99,
-  "active": true,
-  "createdAt": "2026-07-04T10:30:00",
-  "updatedAt": "2026-07-04T10:30:00"
-}
-```
-
 ---
 
 ## How to Run Locally
