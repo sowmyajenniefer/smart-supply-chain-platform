@@ -15,6 +15,10 @@ import com.portfolio.supplychain.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.portfolio.supplychain.event.OrderCreatedEvent;
+import com.portfolio.supplychain.event.OrderItemEvent;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -27,6 +31,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
     private final InventoryService inventoryService;
+    private final OrderEventPublisher orderEventPublisher;
 
     @Transactional
     public OrderResponse createOrder(OrderRequest request) {
@@ -73,6 +78,14 @@ public class OrderService {
         order.setStatus(OrderStatus.INVENTORY_RESERVED);
 
         Order savedOrder = orderRepository.save(order);
+        OrderCreatedEvent event = buildOrderCreatedEvent(savedOrder);
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                orderEventPublisher.publishOrderCreatedEvent(event);
+            }
+        });
 
         return mapToResponse(savedOrder);
     }
@@ -166,6 +179,31 @@ public class OrderService {
                 .quantity(item.getQuantity())
                 .unitPrice(item.getUnitPrice())
                 .lineTotal(item.getLineTotal())
+                .build();
+    }
+
+    private OrderCreatedEvent buildOrderCreatedEvent(Order order) {
+        List<OrderItemEvent> itemEvents = order.getItems()
+                .stream()
+                .map(item -> OrderItemEvent.builder()
+                        .productId(item.getProduct().getId())
+                        .sku(item.getProduct().getSku())
+                        .productName(item.getProduct().getName())
+                        .quantity(item.getQuantity())
+                        .unitPrice(item.getUnitPrice())
+                        .lineTotal(item.getLineTotal())
+                        .build())
+                .toList();
+
+        return OrderCreatedEvent.builder()
+                .orderId(order.getId())
+                .orderNumber(order.getOrderNumber())
+                .customerName(order.getCustomerName())
+                .customerEmail(order.getCustomerEmail())
+                .status(order.getStatus())
+                .totalAmount(order.getTotalAmount())
+                .items(itemEvents)
+                .createdAt(order.getCreatedAt())
                 .build();
     }
 }
