@@ -19,6 +19,9 @@ import com.portfolio.supplychain.event.OrderCreatedEvent;
 import com.portfolio.supplychain.event.OrderItemEvent;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import com.portfolio.supplychain.event.PaymentCompletedEvent;
+import com.portfolio.supplychain.event.PaymentFailedEvent;
+import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -26,6 +29,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrderService {
 
     private final OrderRepository orderRepository;
@@ -205,5 +209,57 @@ public class OrderService {
                 .items(itemEvents)
                 .createdAt(order.getCreatedAt())
                 .build();
+    }
+
+    @Transactional
+    public void handlePaymentCompleted(PaymentCompletedEvent event) {
+        Order order = findOrderById(event.getOrderId());
+
+        if (order.getStatus() == OrderStatus.PAYMENT_COMPLETED) {
+            log.info("Order already marked as PAYMENT_COMPLETED. orderNumber={}", order.getOrderNumber());
+            return;
+        }
+
+        if (order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.PAYMENT_FAILED) {
+            log.warn("Payment completed event ignored because order is already in status={}. orderNumber={}",
+                    order.getStatus(),
+                    order.getOrderNumber());
+            return;
+        }
+
+        order.setStatus(OrderStatus.PAYMENT_COMPLETED);
+        orderRepository.save(order);
+
+        log.info("Order status updated to PAYMENT_COMPLETED for orderNumber={}", order.getOrderNumber());
+    }
+
+    @Transactional
+    public void handlePaymentFailed(PaymentFailedEvent event) {
+        Order order = findOrderById(event.getOrderId());
+
+        if (order.getStatus() == OrderStatus.PAYMENT_FAILED) {
+            log.info("Order already marked as PAYMENT_FAILED. orderNumber={}", order.getOrderNumber());
+            return;
+        }
+
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            log.warn("Payment failed event ignored because order is already CANCELLED. orderNumber={}",
+                    order.getOrderNumber());
+            return;
+        }
+
+        for (OrderItem item : order.getItems()) {
+            StockAdjustmentRequest stockAdjustmentRequest = StockAdjustmentRequest.builder()
+                    .quantity(item.getQuantity())
+                    .build();
+
+            inventoryService.releaseStock(item.getProduct().getId(), stockAdjustmentRequest);
+        }
+
+        order.setStatus(OrderStatus.PAYMENT_FAILED);
+        orderRepository.save(order);
+
+        log.info("Order status updated to PAYMENT_FAILED and inventory released for orderNumber={}",
+                order.getOrderNumber());
     }
 }
